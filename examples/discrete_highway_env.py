@@ -21,8 +21,8 @@ def make_discrete_highway_env():
 
 def _make_agent_state(env: AbstractEnv, lr: float, rng_key: chex.Array, device):
     action_space = env.action_type.space()
-    model = DiscreteModel(num_actions=action_space.n)
-    return make_agent_state(env, model=model, lr=lr, rng_key=rng_key, device=device)
+    model_factory = lambda x: DiscreteModel(num_actions=action_space.n)(x)
+    return make_agent_state(env, model_factory=model_factory, lr=lr, rng_key=rng_key, device=device)
 
 
 if __name__ == '__main__':

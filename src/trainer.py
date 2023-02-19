@@ -50,21 +50,22 @@ class PPOTrainer:
         self._value_clip = value_clip
 
         self._env = env_factory()
+        self._buffer = RolloutBuffer(
+            discount_gamma=self._discount_gamma,
+            gae_lambda=self._gae_lambda,
+            batch_size=self._batch_size,
+            num_batches=self._num_batches,
+            use_gae=self._use_gae
+        )
         [*_, self._gpu_device], [*_, self._cpu_device] = jax.devices("cpu"), jax.devices("cpu")
 
     def evaluate(self, env, policy: BasePPOPolicy, agent_state: AgentState, seed: jnp.array, device):
 
         with jax.default_device(device):
             agent_state = jax.device_put(agent_state, device)
-            buffer = RolloutBuffer(
-                discount_gamma=self._discount_gamma,
-                gae_lambda=self._gae_lambda,
-                batch_size=self._batch_size,
-                num_batches=self._num_batches,
-                use_gae=self._use_gae
-            )
+            self._buffer.reset()
             episode_rewards = []
-            while len(buffer) < self._batch_size * self._num_batches:
+            while len(self._buffer) < self._batch_size * self._num_batches:
 
                 observation, _ = env.reset()
 
@@ -74,6 +75,7 @@ class PPOTrainer:
                 while not done:
                     seed, step_seed = jax.random.split(seed)
                     action, logits, log_pi, state_value = policy.act(observation, agent_state.params, step_seed)
+                    # TODO cast to int in case of Discrete Action space
                     next_observation, reward, done, truncated, info = env.step(int(jax.device_get(action)))
                     episode_reward += reward
                     transition = Transition(
@@ -89,9 +91,9 @@ class PPOTrainer:
                     observation = next_observation
                     i += 1
 
-                    buffer.add(transition)
+                    self._buffer.add(transition)
                 episode_rewards.append(episode_reward)
-            return buffer, episode_rewards
+            return self._buffer, episode_rewards
 
     def train(self, transitions, policy: BasePPOPolicy, agent_state: AgentState, device):
 
@@ -144,11 +146,25 @@ class PPOTrainer:
 
             rng_key, iteration_seed = jax.random.split(rng_key)
             buffer, episode_rewards = self.evaluate(self._env, policy, agent_state, iteration_seed, self._cpu_device)
+
+            t1 = time.time()
+
             transitions = buffer.get(iteration_seed)
+
+            t2 = time.time()
+
             agent_state = self.train(transitions, policy, agent_state, self._gpu_device)
+
+            t3 = time.time()
             episode_return_queue.extend(episode_rewards)
 
-            print(f"iteration {i + 1} took {time.time() - t0}s")
+            print(
+                f"iteration  {i + 1} | reward {sum(episode_return_queue) / len(episode_return_queue)}, "
+                f"eval time {t1 - t0}s, "
+                f"sampling time {t2 - t1}s, "
+                f"train time {t3 - t2}s, "
+                f"full time: {t3 - t0}s, "
+            )
             writer.add_scalar('ppo/episode_reward_mean', sum(episode_return_queue) / len(episode_return_queue), i)
 
         writer.close()

@@ -121,28 +121,33 @@ class DiscretePPOPolicy(BasePPOPolicy):
 class ContinuousPPOPolicy(BasePPOPolicy):
 
     def get_importance_sampling_ratios(self, transitions, params):
-        new_mu_sigma, new_values = self.apply_fun(params, transitions.observation)
+        new_mean_logstd, new_values = self.apply_fun(params, transitions.observation)
 
-        new_mu, new_sigma = jnp.split(new_mu_sigma, indices_or_sections=[1, 1], axis=-1)
-        new_distribution = distrax.Transformed(distrax.MultivariateNormalDiag(loc=new_mu, scale_diag=new_sigma),
-                                               distrax.Tanh())
+        new_mean, new_log_std = jnp.split(new_mean_logstd, indices_or_sections=[1], axis=-1)
+        new_distribution = distrax.Transformed(
+            distrax.Normal(loc=new_mean, scale=jnp.exp(new_log_std)),
+            distrax.Tanh()
+        )
 
-        new_log_pi = new_distribution.log_prob(transitions.action)
-        ratio = jnp.divide(new_log_pi, transitions.log_pi)
+        new_log_pi = new_distribution.log_prob(transitions.action[..., None])
+        ratio = jnp.divide(jnp.squeeze(new_log_pi), transitions.log_pi)
 
-        return ratio, new_mu_sigma, new_values
+        return ratio, new_mean_logstd, new_values
 
     def get_entropy_loss(self, transitions, logits):
-        mu, sigma = jnp.split(logits, indices_or_sections=[1, 1], axis=-1)
-        distribution = distrax.Transformed(distrax.MultivariateNormalDiag(loc=mu, scale_diag=sigma), distrax.Tanh())
+        mean, logstd = jnp.split(logits, indices_or_sections=[1], axis=-1)
+        distribution = distrax.Transformed(distrax.Normal(loc=mean, scale=jnp.exp(logstd)), distrax.Tanh())
 
-        return -jnp.mean(distribution.entropy())
+        return jnp.mean(jnp.log(distribution.log_prob(transitions.action[..., None])))
 
     def act(self, observation: chex.ArrayNumpy, params: hk.Params, rng_key: chex.Array, explore=True):
-        mu_sigma, state_value = self.apply_fun(params, observation[None, ...])
-        mu_sigma, state_value = jnp.squeeze(mu_sigma), jnp.squeeze(state_value)
-        mu, sigma = jnp.split(mu_sigma, indices_or_sections=[1, 1])
-        distribution = distrax.Normal(loc=mu, scale=sigma)
+        mean_logstd, state_value = self.apply_fun(params, observation[None, ...])
+        mean_logstd, state_value = jnp.squeeze(mean_logstd), jnp.squeeze(state_value)
+        mean, log_std = jnp.split(mean_logstd, indices_or_sections=[1])
+        distribution = distrax.Transformed(
+            distrax.Normal(loc=mean, scale=jnp.exp(log_std)),
+            distrax.Tanh()
+        )
 
         if explore:
             action, log_pi = distribution.sample_and_log_prob(seed=rng_key)
@@ -150,4 +155,4 @@ class ContinuousPPOPolicy(BasePPOPolicy):
             action = distribution.mean()
             log_pi = distribution.log_prob(action)
 
-        return action, mu_sigma, log_pi, state_value
+        return action, mean_logstd, log_pi, state_value

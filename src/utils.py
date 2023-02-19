@@ -29,9 +29,9 @@ class AgentState:
     optimizer_state: optax.OptState
 
 
-def make_agent_state(env: AbstractEnv, model: haiku.Module, lr: float, rng_key: chex.Array, device):
+def make_agent_state(env: AbstractEnv, model_factory: haiku.Module, lr: float, rng_key: chex.Array, device):
     with jax.default_device(device):
-        init, apply = hk.without_apply_rng(hk.transform(lambda x: model(x)))
+        init, apply = hk.without_apply_rng(hk.transform(model_factory))
 
         dummy_obs, _ = env.reset()
         params = init(rng=rng_key, x=dummy_obs[None, ...])
