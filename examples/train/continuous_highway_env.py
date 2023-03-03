@@ -32,7 +32,7 @@ if __name__ == '__main__':
         agent_state_factory=_make_agent_state,
         num_iteration=1000,
         num_sgd_iteration=10,
-        learning_rate=0.003,
+        learning_rate=0.0003,
         policy_clip=0.2,
         entropy_coefficient=0.01,
         value_coefficient=1.0,

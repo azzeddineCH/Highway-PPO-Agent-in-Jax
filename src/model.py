@@ -36,10 +36,19 @@ class ContinuousModel(hk.Module):
         x = hk.Flatten()(observation)
         x = hk.Sequential([
             hk.Linear(256), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
             hk.Linear(256), jax.nn.relu,
         ])(x)
 
         mu_logstd = hk.Linear(4)(x)
+
+        x = hk.Sequential([
+            hk.Linear(256), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
+            hk.Linear(256), jax.nn.relu,
+        ])(x)
+
         value = hk.Linear(1)(x)
 
         return mu_logstd, value
