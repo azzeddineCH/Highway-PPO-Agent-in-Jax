@@ -4,7 +4,7 @@ import gym
 from highway_env.envs import AbstractEnv
 
 from src.model import DiscreteModel
-from src.policy import DiscretePPOPolicy
+from src.policies.discrete_policy import DiscretePPOPolicy
 from src.trainer import PPOTrainer
 from src.utils import make_agent_state
 
@@ -28,19 +28,21 @@ def _make_agent_state(env: AbstractEnv, lr: float, rng_key: chex.Array, device):
 if __name__ == '__main__':
     rng_key = jax.random.PRNGKey(10)
     PPOTrainer(
+        policy_class=DiscretePPOPolicy,
         env_factory=make_discrete_highway_env,
         agent_state_factory=_make_agent_state,
         num_iteration=1000,
         num_sgd_iteration=10,
-        learning_rate=0.0003,
+        learning_rate=0.003,
         policy_clip=0.2,
         entropy_coefficient=0.01,
         value_coefficient=1.0,
-        batch_size=64,
+        batch_size=128,
         num_batches=4,
         discount_gamma=0.99,
         gae_lambda=0.95,
         value_clip=0.1,
         use_gae=True,
-        apply_value_clipping=False
-    ).run(rng_key, policy_class=DiscretePPOPolicy)
+        apply_value_clipping=False,
+        training_device="cpu"
+    ).train(rng_key)

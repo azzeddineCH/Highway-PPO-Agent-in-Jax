@@ -12,10 +12,19 @@ class DiscreteModel(hk.Module):
         x = hk.Flatten()(observation)
         x = hk.Sequential([
             hk.Linear(256), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
             hk.Linear(256), jax.nn.relu,
         ])(x)
 
         action_logtis = hk.Linear(self.num_actions)(x)
+
+        x = hk.Sequential([
+            hk.Linear(256), jax.nn.relu,
+            hk.Linear(512), jax.nn.relu,
+            hk.Linear(256), jax.nn.relu,
+        ])(x)
+
         value = hk.Linear(1)(x)
 
         return action_logtis, value
@@ -30,7 +39,7 @@ class ContinuousModel(hk.Module):
             hk.Linear(256), jax.nn.relu,
         ])(x)
 
-        mu_sigma = hk.Linear(2)(x)
+        mu_logstd = hk.Linear(4)(x)
         value = hk.Linear(1)(x)
 
-        return mu_sigma, value
+        return mu_logstd, value
