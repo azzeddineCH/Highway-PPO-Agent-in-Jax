@@ -29,6 +29,8 @@ class RolloutBuffer:
     @partial(jax.jit, static_argnums=0)
     def preprocess(self, rng_key, transitions):
         transitions = jax.tree_util.tree_map(lambda *t: jnp.asarray(t), *transitions)
+        transitions.state_value = jax.lax.stop_gradient(transitions.state_value)
+
         discount_t = (1 - transitions.done) * self._discount_gamma
 
         if self._use_gae:
@@ -40,7 +42,7 @@ class RolloutBuffer:
                 values=extended_values,
                 stop_target_gradients=True
             )
-            transitions.step_return = jax.lax.stop_gradient(transitions.advantage + transitions.state_value)
+            transitions.step_return = transitions.advantage + transitions.state_value
         else:
             transitions.step_return = rlax.discounted_returns(
                 r_t=transitions.reward,

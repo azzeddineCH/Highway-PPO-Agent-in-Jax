@@ -16,6 +16,9 @@ def make_discrete_highway_env():
     env = gym.make("highway-fast-v0")
     env.config["observation"]["type"] = observation_type
     env.config["action"]["type"] = action_type
+    env.config["vehicles_count"] = 25
+    env.config["vehicles_density"] = 1
+    env.config["duration"] = 200
     return env
 
 

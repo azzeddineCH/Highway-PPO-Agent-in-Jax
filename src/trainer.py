@@ -8,6 +8,7 @@ from tensorboardX import SummaryWriter
 
 from src.buffer import RolloutBuffer
 from src.policies.base_policy import BasePPOPolicy
+from src.policies.continous_policy import ContinuousPPOPolicy
 from src.utils import AgentState, Transition, EpisodeStatsBuilder
 
 
@@ -158,10 +159,11 @@ class PPOTrainer:
         episode_stats_builder = EpisodeStatsBuilder()
         while not done:
             seed, step_seed = jax.random.split(seed)
-            action, logits, log_pi, state_value = policy.act(observation, agent_state.params, step_seed, explore=explore)
+            action, logits, log_pi, state_value = policy.act(observation, agent_state.params, step_seed,
+                                                             explore=explore)
 
             action = jax.device_get(action)
-            if action.shape[-1] == 2:
+            if isinstance(policy, ContinuousPPOPolicy):
                 next_observation, reward, done, truncated, info = self._env.step(action)
             else:
                 next_observation, reward, done, truncated, info = self._env.step(int(action))

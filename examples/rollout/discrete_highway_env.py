@@ -15,6 +15,9 @@ def make_discrete_highway_env():
     env = gym.make("highway-fast-v0")
     env.config["observation"]["type"] = observation_type
     env.config["action"]["type"] = action_type
+    env.config["vehicles_count"] = 5
+    env.config["vehicles_density"] = 1
+    env.config["duration"] = 200
     return env
 
 
@@ -46,4 +49,4 @@ if __name__ == '__main__':
         training_device="cpu"
     )
 
-    trainer.run_rollouts(rng_key, num_episodes=100, render=True, checkpoint_dir="examples/checkpoints/49")
+    trainer.run_rollouts(rng_key, num_episodes=100, render=True, checkpoint_dir="checkpoints/24")

@@ -1,5 +1,6 @@
 import haiku as hk
 import jax
+import jax.numpy as jnp
 
 
 class DiscreteModel(hk.Module):
@@ -26,6 +27,7 @@ class DiscreteModel(hk.Module):
         ])(x)
 
         value = hk.Linear(1)(x)
+        value = jax.nn.tanh(value)
 
         return action_logtis, value
 
@@ -41,7 +43,9 @@ class ContinuousModel(hk.Module):
             hk.Linear(256), jax.nn.relu,
         ])(x)
 
-        mu_logstd = hk.Linear(4)(x)
+        mean = hk.Linear(2)(x)
+        mean = jax.nn.tanh(mean)
+        logstd = hk.Linear(2)(x)
 
         x = hk.Sequential([
             hk.Linear(256), jax.nn.relu,
@@ -50,5 +54,6 @@ class ContinuousModel(hk.Module):
         ])(x)
 
         value = hk.Linear(1)(x)
+        value = jax.nn.tanh(value)
 
-        return mu_logstd, value
+        return jnp.concatenate([mean, logstd], axis=-1), value

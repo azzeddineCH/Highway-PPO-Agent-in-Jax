@@ -1,1 +1,3 @@
 /examples/runs/
+/checkpoints
+__pycache__
